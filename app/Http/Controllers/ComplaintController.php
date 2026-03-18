@@ -1001,7 +1001,142 @@ class ComplaintController extends Controller
 
         return view('complaint.attendap_today_report', $data);
     }
+// Attedence list 
+public function pendingApproval(Request $request)
+    {
+        $data['title'] = 'Pending Approval';
+ 
+        if ($request->ajax()) {
+ 
+            // ── Base query ──────────────────────────────────────────────────
+            // Join attendtl → users (engineer) → department → shift
+            // Only show records that are Present (ap = 'P') & not approved (is_approved = 0)
+            $query = Attendtl::with([
+                    'engineer:id,name,shift_id,deparment_id',
+                    'engineer.department:id,name',
+                    'engineer.shift:id,title,shift_start',
+                ])
+                ->where('ap', 'P')
+                ->where('is_approved', 0)
+                ->latest('in_date');
+ 
+            // ── Optional filters ────────────────────────────────────────────
+ 
+            // Filter by specific date (yyyy-mm-dd)
+            if ($request->filled('date_from')) {
+                $query->where('in_date', $request->date_from);
+            }
+ 
+            // Filter by attendance type (P / A / L / H) – kept generic so it
+            // can also show non-P records if admin changes the dropdown
+            if ($request->filled('attn')) {
+                $query->where('ap', $request->attn);
+            }
+ 
+            // Filter by role (via spatie model_has_roles on the engineer/user)
+            if ($request->filled('role_id')) {
+                $query->whereHas('engineer', function ($q) use ($request) {
+                    $q->whereHas('roles', function ($r) use ($request) {
+                        $r->where('roles.id', $request->role_id);
+                    });
+                });
+            }
+ 
+            // Filter by department
+            if ($request->filled('department')) {
+                $query->whereHas('engineer', function ($q) use ($request) {
+                    $q->where('deparment_id', $request->department);
+                });
+            }
+ 
+            // ── Build DataTable response ────────────────────────────────────
+            return DataTables::of($query)
+                ->addIndexColumn()
+ 
+                // in_selfie – raw filename stored in attendtl
+                ->addColumn('in_selfie', function (Attendtl $row) {
+                    return $row->in_selfie ?? '';
+                })
+ 
+                // engineer name (from users table)
+                ->addColumn('name', function (Attendtl $row) {
+                    return $row->engineer ? $row->engineer->name : 'N/A';
+                })
+ 
+                // department (nested relation)
+                ->addColumn('department', function (Attendtl $row) {
+                    if ($row->engineer && $row->engineer->department) {
+                        return ['name' => $row->engineer->department->name];
+                    }
+                    return ['name' => ''];
+                })
+ 
+                // shift (nested relation)
+                ->addColumn('shift', function (Attendtl $row) {
+                    if ($row->engineer && $row->engineer->shift) {
+                        return [
+                            'title'       => $row->engineer->shift->title,
+                            'shift_start' => $row->engineer->shift->shift_start,
+                        ];
+                    }
+                    return null;
+                })
+ 
+                // attendance status – the `ap` column value
+                ->addColumn('attendance_status', function (Attendtl $row) {
+                    return $row->ap;
+                })
+ 
+                // in_date formatted dd-mm-yyyy
+                ->addColumn('in_date', function (Attendtl $row) {
+                    return $row->in_date
+                        ? Carbon::parse($row->in_date)->format('d-m-Y')
+                        : '';
+                })
+ 
+                // in_time & out_time – already stored as varchar HH:MM:SS
+                ->addColumn('in_time', function (Attendtl $row) {
+                    return $row->in_time ?? '';
+                })
+ 
+                ->addColumn('out_time', function (Attendtl $row) {
+                    return $row->out_time ?? '';
+                })
+ 
+                ->addColumn('in_address', function (Attendtl $row) {
+                    return $row->in_address ?? '';
+                })
+ 
+                ->rawColumns([])
+                ->make(true);
+        }
+ 
+        return view('complaint.pending-approval', $data);
+    }
+ 
+    /**
+     * Bulk-approve selected attendance records.
+     * Expects POST body: ids[] = array of attendtl.id values
+     */
+    public function approveAttendance(Request $request)
+    {
+        $request->validate([
+            'ids'   => 'required|array|min:1',
+            'ids.*' => 'integer|exists:attendtl,id',
+        ]);
+ 
+        $updated = Attendtl::whereIn('id', $request->ids)
+            ->where('is_approved', 0)   // safety: don't re-approve
+            ->update(['is_approved' => 1]);
+ 
+        return response()->json([
+            'success' => true,
+            'message' => $updated . ' record(s) approved successfully.',
+            'updated' => $updated,
+        ]);
+    }
 
+// ===============================================
     public function userMonthlyAttendenceList($id, Request $request)
     {
         $data['title'] = 'Monthly Attendence List';

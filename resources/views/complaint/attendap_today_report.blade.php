@@ -33,6 +33,7 @@
                             <button class="btn btn-primary" id="toggleFormBtn"><i class="fa fa-filter" aria-hidden="true"></i></button>
                             <a href="{{ route('work-update-list') }}" class="btn btn-md btn-primary "> Sales Work Update </a>
                         </div>
+                        
                     </div>
                     <div class="header-element px-4">
                         <form id="search-form" style="display: none;">

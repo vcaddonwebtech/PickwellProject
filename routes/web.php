@@ -66,6 +66,12 @@ Route::get('salaries/{main_machine_type}', [ComplaintController::class, 'salarie
 Route::get('salesalaries/{main_machine_type}', [ComplaintController::class, 'saleSalaries'])->name('salesalaries')->middleware('auth');
 Route::get('party-firms', [PartyController::class, 'partyFirms'])->name('party-firms')->middleware('auth');
 //Route::get('dpr', [DashboardController::class, 'dpr'])->name('dpr')->middleware('auth');
+// Route::get('/pending-approval', [ComplaintController::class, 'pendingApproval'])
+//     ->name('pending-approval');
+
+// Pending-approval list page  →  attendap_today_report has a button for this
+Route::get('/pending-approval',   [ComplaintController::class, 'pendingApproval'])->name('pending-approval');
+Route::post('/approve-attendance', [ComplaintController::class, 'approveAttendance'])->name('approve-attendance');
 
 
 Route::get('/salesleadcreate/{main_machine_type}', [SalesPersonController::class, 'salesleadcreate'])->name('salesleadcreate');
