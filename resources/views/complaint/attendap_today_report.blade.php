@@ -33,7 +33,10 @@
                             <button class="btn btn-primary" id="toggleFormBtn"><i class="fa fa-filter" aria-hidden="true"></i></button>
                             <a href="{{ route('work-update-list') }}" class="btn btn-md btn-primary "> Sales Work Update </a>
                         </div>
-                        
+                        <a href="{{ route('pending-approval') }}" class="btn btn-md btn-warning">
+    <i class="fa fa-clock-o"></i> Pending Approval
+    <span class="badge bg-danger ms-1">{{ $pendingforapproval }}</span>
+</a>
                     </div>
                     <div class="header-element px-4">
                         <form id="search-form" style="display: none;">

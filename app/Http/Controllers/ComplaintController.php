@@ -873,27 +873,37 @@ class ComplaintController extends Controller
         $data['title'] = 'Today Attendence Report';
         $todayDate = isset($request->date_from) ? $request->date_from : date('Y-m-d');
         $totalstaff = User::where('is_active', 1)->count();
+        // Present = has attendtl record for today with ap = 'P' (approved OR pending)
         $present = User::join('attendtl', function ($join) use ($todayDate) {
             $join->on('users.id', '=', 'attendtl.engineer_id')
-            ->where('attendtl.in_date', $todayDate)
-            ->where('attendtl.is_approved', 1);
-           //->where('attendtl.ap', 'P');
-            })->count();
+                ->where('attendtl.in_date', $todayDate)
+                ->where('attendtl.ap', 'P');
+        })->count();
 
+        // Pending approval = present but not yet approved
         $pendingforapproval = User::join('attendtl', function ($join) use ($todayDate) {
             $join->on('users.id', '=', 'attendtl.engineer_id')
-            ->where('attendtl.in_date', $todayDate)
-            ->where('attendtl.is_approved', 0)
-            ->where('attendtl.ap', 'P');
-            })->count();    
+                ->where('attendtl.in_date', $todayDate)
+                ->where('attendtl.is_approved', 0)
+                ->where('attendtl.ap', 'P');
+        })->count();
 
-        $absent = User::where('is_active', 1)
+        // Absent = active users who have NO attendtl record at all for today
+        // (excludes pending-approval users who have clocked in but not yet approved)
+        $absent = User::where('users.is_active', 1)
             ->leftJoin('attendtl', function ($join) use ($todayDate) {
                 $join->on('users.id', '=', 'attendtl.engineer_id')
                     ->where('attendtl.in_date', $todayDate);
             })
-            ->whereNull('attendtl.id')
-            ->count();  
+            ->leftJoin('leaves', function ($join) use ($todayDate) {
+                $join->on('users.id', '=', 'leaves.user_id')
+                    ->where('leaves.is_approved', 1)
+                    ->whereDate('leaves.leave_from', '<=', $todayDate)
+                    ->whereDate('leaves.leave_till', '>=', $todayDate);
+            })
+            ->whereNull('attendtl.id')   // no clock-in record
+            ->whereNull('leaves.id')     // and not on leave
+            ->count();
 
         $leaveCount = User::where('is_active', 1)
         ->join('leaves', function ($join) use ($todayDate) {
