@@ -187,7 +187,7 @@ $(document).ready(function () {
                 data: 'name', name: 'name',
                 render: function (data, type, row) {
                     var base = "{{ url('user-monthly-attendence-list') }}";
-                    return '<a class="pa-name" href="' + base + '/' + row.id + '">' + (data || 'N/A') + '</a>';
+                    return '<a class="pa-name" href="' + base + '/' + row.engineer_id + '">' + (data || 'N/A') + '</a>';
                 }
             },
             {
