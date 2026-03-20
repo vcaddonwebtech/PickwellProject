@@ -42,7 +42,7 @@ Route::get('/dashboard', [DashboardController::class, 'states'])->middleware(['a
 Route::get('/machineservicedata/{main_machine_type}', [DashboardController::class, 'machineservicestates'])->middleware(['auth', 'verified'])->name('machineservicedata');
 Route::get('/machineservicestatesdata/{main_machine_type}', [DashboardController::class, 'machineservicestatesdata'])->middleware(['auth', 'verified'])->name('machineservicestatesdata');
 Route::get('/machinesalesdata/{main_machine_type}', [DashboardController::class, 'machinesalesstates'])->middleware(['auth', 'verified'])->name('machinesalesdata');
-Route::get('/today-report/{main_machine_type}', [ComplaintController::class, 'todayReport'])->name('todayReport')->middleware('auth');
+Route::get('/today-report/{main_machine_type}', [ComplaintController::class, 'todayReport'])->name('mReport')->middleware('auth');
 Route::get('/attendap-today-report', [ComplaintController::class, 'attendapTodayReport'])->name('attendap-today-report')->middleware('auth');
 Route::get('/user-monthly-attendence-list/{user}', [ComplaintController::class, 'userMonthlyAttendenceList'])->name('user-monthly-attendence-list')->middleware('auth');
 Route::get('/user-daily-attendence-details/{user}/{date}', [ComplaintController::class, 'userDailyAttendenceDetails'])->name('user-daily-attendence-details')->middleware('auth');

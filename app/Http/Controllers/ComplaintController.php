@@ -1152,7 +1152,13 @@ public function approveAttendance(Request $request)
             ->where('attendtl.engineer_id', $id)
             ->where('attendtl.ap', 'P');
             })->count();
-
+        $pending  = User::join('attendtl', function ($join) use ($id) {
+            $join->on('users.id', '=', 'attendtl.engineer_id')
+            ->where('attendtl.engineer_id', $id)
+            ->where('attendtl.ap', 'P')
+            ->where('attendtl.is_approved', 0);
+            
+            })->count();
         $absent =  ($workingDays - $present);
 
         $leaveCount = User::where('is_active', 1)
@@ -1167,6 +1173,7 @@ public function approveAttendance(Request $request)
         $data['present'] = $present;
         $data['absent'] = $absent;
         $data['leave'] = $leaveCount;
+        $data['pending'] = $pending;
         $usersWithAttendance = Attendtl::with('user')->where('engineer_id', $id);
         
         // Execute the query
