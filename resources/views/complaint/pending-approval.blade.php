@@ -20,23 +20,10 @@
             <div class="col-xl-12">
                 <div class="card custom-card">
                     <div class="card-header justify-content-between">
-                        <div class="card-title">{{ $title }}:</div>
-                        <div class="row card-title col-xl-8">
-                            <div class="col-xxl-3">Total: {{ $totalstaff }}</div>
-                            <div class="col-xxl-3">Pending Approval: <span style="color: red; font-size: 15px;"> {{ $pendingforapproval }} </span></div>
-                            <div class="col-xxl-3">Present: <span style="color: green; font-size: 15px;"> {{ $present }} </span></div>
-                            <div class="col-xxl-3">Absent: <span style="color: red; font-size: 15px;"> {{ $absent }} </span></div>
-                            <div class="col-xxl-3">Leave: <span style="color: red; font-size: 15px;"> {{ $leave }} </span></div>
-                        </div>
+                        <div class="card-title">{{ $title }}</div>
                         <div class="justify-content-end">
-                            <!-- <a href="#" class="btn btn-primary"><i class="fa fa-download" aria-hidden="true"></i></a> -->
                             <button class="btn btn-primary" id="toggleFormBtn"><i class="fa fa-filter" aria-hidden="true"></i></button>
-                            <a href="{{ route('work-update-list') }}" class="btn btn-md btn-primary "> Sales Work Update </a>
                         </div>
-                                                <a href="{{ route('pending-approval') }}" class="btn btn-md btn-warning">
-    <i class="fa fa-clock-o"></i> Pending Approval
-    <span class="badge bg-danger ms-1">{{ $pendingforapproval }}</span>
-</a>
                     </div>
                     <div class="header-element px-4">
                         <form id="search-form" style="display: none;">
@@ -86,6 +73,7 @@
                             <table class="table text-nowrap table-bordered" id="complaint-table">
                                 <thead class="table-secondary bg-gray">
                                     <tr>
+                                        <th><input type="checkbox" class="form-check-input" id="selectAll"></th>
                                         <th>No.</th>
                                         <th>In Selfie</th>
                                         <th>Engineer Name</th>
@@ -142,6 +130,14 @@
                     }
                 },
                 columns: [{
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        render: function(data, type, row) {
+                            return '<input type="checkbox" class="form-check-input row-checkbox" value="' + row.id + '">';
+                        }
+                    },
+                    {
                         data: 'DT_RowIndex',
                         name: 'No'
                     },
@@ -221,6 +217,23 @@
 
             $('#date_from').datepicker({
                 dateFormat: "yy-mm-dd",  // Change format to d-m-Y (day-month-year)
+            });
+
+            // Select all checkboxes
+            $('#selectAll').on('click', function() {
+                $('.row-checkbox').prop('checked', this.checked);
+            });
+
+            // Uncheck "Select All" if any checkbox is unchecked
+            $('#complaint-table').on('change', '.row-checkbox', function() {
+                if (!this.checked) {
+                    $('#selectAll').prop('checked', false);
+                } else {
+                    // Check if all checkboxes are checked
+                    if ($('.row-checkbox:checked').length === $('.row-checkbox').length) {
+                        $('#selectAll').prop('checked', true);
+                    }
+                }
             });
         });
     </script>

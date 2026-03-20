@@ -67,6 +67,8 @@ Route::get('salesalaries/{main_machine_type}', [ComplaintController::class, 'sal
 Route::get('party-firms', [PartyController::class, 'partyFirms'])->name('party-firms')->middleware('auth');
 //Route::get('dpr', [DashboardController::class, 'dpr'])->name('dpr')->middleware('auth');
 
+Route::post('/approve-attendance', [ComplaintController::class, 'approveAttendance'])->name('approve-attendance')->middleware('auth');
+Route::get('/pending-approval', [ComplaintController::class, 'pendingApproval'])->name('pending-approval')->middleware('auth');
 
 Route::get('/salesleadcreate/{main_machine_type}', [SalesPersonController::class, 'salesleadcreate'])->name('salesleadcreate');
 Route::post('/salesleadstore', [SalesPersonController::class, 'store'])->name('salesleadstore');
