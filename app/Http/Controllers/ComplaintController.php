@@ -1002,104 +1002,132 @@ class ComplaintController extends Controller
         return view('complaint.attendap_today_report', $data);
     }
     
-    public function pendingApproval(Request $request)
-    {
-        $data['title'] = 'Pending Approval';
-        $todayDate = isset($request->date_from) ? $request->date_from : date('Y-m-d');
-       
+public function pendingApproval(Request $request)
+{
+    $data['title'] = 'Pending Approval';
+    $todayDate = isset($request->date_from) ? $request->date_from : date('Y-m-d');
+   
 
-        if ($request->ajax()) {
-            // Initialize the base query
-            $usersWithAttendance = User::with('department','shift')->leftJoin('attendtl', function ($join) use ($todayDate) {
-                $join->on('users.id', '=', 'attendtl.engineer_id')
-                    ->where('attendtl.in_date', '=', $todayDate);
+    if ($request->ajax()) {
+        // Initialize the base query
+        $usersWithAttendance = User::with('department','shift')->leftJoin('attendtl', function ($join) use ($todayDate) {
+            $join->on('users.id', '=', 'attendtl.engineer_id')
+                ->where('attendtl.in_date', '=', $todayDate)
+                ->where('attendtl.is_approved', 0); // Only show unapproved records
+        })
+            ->leftJoin('leaves', function ($join) use ($todayDate) {
+                $join->on('users.id', '=', 'leaves.user_id')
+                    ->where('leaves.is_approved', 1)
+                    ->whereDate('leaves.leave_from', '<=', $todayDate)
+                    ->whereDate('leaves.leave_till', '>=', $todayDate);
             })
-                ->leftJoin('leaves', function ($join) use ($todayDate) {
-                    $join->on('users.id', '=', 'leaves.user_id')
-                        ->where('leaves.is_approved', 1)
-                        ->whereDate('leaves.leave_from', '<=', $todayDate)
-                        ->whereDate('leaves.leave_till', '>=', $todayDate);
-                })
-                ->select(
-                    'users.*',
-                    'attendtl.engineer_id',
-                    'attendtl.in_time',
-                    'attendtl.out_time',
-                    'attendtl.in_date',
-                    'attendtl.out_date',
-                    'attendtl.ap',
-                    'attendtl.late_hrs',
-                    'attendtl.earligoing_hrs',
-                    'attendtl.working_hrs',
-                    'attendtl.pdays',
-                    'attendtl.in_address',
-                    'attendtl.out_address',
-                    'attendtl.in_selfie',
-                    DB::raw(
-                        'CASE 
-                            WHEN attendtl.id IS NOT NULL THEN attendtl.ap
-                            WHEN leaves.id IS NOT NULL THEN "L"
-                            ELSE "A"
-                        END as attendance_status'
-                    )
+            ->select(
+                'users.*',
+                'attendtl.id as attendance_id',
+                'attendtl.engineer_id',
+                'attendtl.in_time',
+                'attendtl.out_time',
+                'attendtl.in_date',
+                'attendtl.out_date',
+                'attendtl.ap',
+                'attendtl.late_hrs',
+                'attendtl.earligoing_hrs',
+                'attendtl.working_hrs',
+                'attendtl.pdays',
+                'attendtl.in_address',
+                'attendtl.out_address',
+                'attendtl.in_selfie',
+                DB::raw(
+                    'CASE 
+                        WHEN attendtl.id IS NOT NULL THEN attendtl.ap
+                        WHEN leaves.id IS NOT NULL THEN "L"
+                        ELSE "A"
+                    END as attendance_status'
                 )
-                ->where('users.is_active', 1)
-                //->where('attendtl.ap', 'P')
-                //->orderBy('users.name', 'ASC');
-                ->orderBy('attendtl.created_at', 'DESC');
+            )
+            ->where('users.is_active', 1)
+            ->whereNotNull('attendtl.id') // Only show records that have attendance entries
+            //->where('attendtl.ap', 'P')
+            //->orderBy('users.name', 'ASC');
+            ->orderBy('attendtl.created_at', 'DESC');
 
-            // Apply the 'attn' filter if set
-            if ($request->has('attn') && !empty($request->attn)) {
-                $usersWithAttendance->where('attendtl.ap', $request->attn);
-            }
-
-            // Apply the 'attn' filter if set
-            if ($request->has('department') && !empty($request->department)) {
-                $usersWithAttendance->where('deparment_id', $request->department);
-            }
-
-            // Apply the 'role_id' filter if set
-            if ($request->has('role_id') && !empty($request->role_id)) {
-                $usersWithAttendance->whereHas('roles', function ($q) use ($request) {
-                    $q->where('id', $request->role_id);
-                });
-            }
-
-            // Execute the query
-            $usersWithAttendance = $usersWithAttendance->get();
-
-            // Return DataTables response
-            return DataTables::of($usersWithAttendance)
-                ->addIndexColumn()
-                ->addColumn('designation', function ($row) {
-                    return $row->getRoleNames()->implode(', ');
-                })
-                ->addColumn('pendingComplaintsCount', function ($row) {
-                    return DB::table('complaints')
-                        ->where('engineer_id', $row->id)
-                        ->where('status_id', 1)
-                        ->count();
-                })
-                ->addColumn('inProgressComplaintsCount', function ($row) {
-                    return DB::table('complaints')
-                        ->where('engineer_id', $row->id)
-                        ->where('status_id', 2)
-                        ->count();
-                })
-                ->addColumn('closedComplaintsCount', function ($row) use ($todayDate) {
-                    return DB::table('complaints')
-                        ->where('engineer_id', $row->id)
-                        ->where('status_id', 3)
-                        ->where('engineer_out_date', $todayDate)
-                        ->count();
-                })
-                ->rawColumns(['action'])
-                ->make(true);
+        // Apply the 'attn' filter if set
+        if ($request->has('attn') && !empty($request->attn)) {
+            $usersWithAttendance->where('attendtl.ap', $request->attn);
         }
 
-        return view('complaint.pending-approval', $data);
+        // Apply the 'department' filter if set
+        if ($request->has('department') && !empty($request->department)) {
+            $usersWithAttendance->where('deparment_id', $request->department);
+        }
+
+        // Apply the 'role_id' filter if set
+        if ($request->has('role_id') && !empty($request->role_id)) {
+            $usersWithAttendance->whereHas('roles', function ($q) use ($request) {
+                $q->where('id', $request->role_id);
+            });
+        }
+
+        // Execute the query
+        $usersWithAttendance = $usersWithAttendance->get();
+
+        // Return DataTables response
+        return DataTables::of($usersWithAttendance)
+            ->addIndexColumn()
+            ->addColumn('designation', function ($row) {
+                return $row->getRoleNames()->implode(', ');
+            })
+            ->addColumn('pendingComplaintsCount', function ($row) {
+                return DB::table('complaints')
+                    ->where('engineer_id', $row->id)
+                    ->where('status_id', 1)
+                    ->count();
+            })
+            ->addColumn('inProgressComplaintsCount', function ($row) {
+                return DB::table('complaints')
+                    ->where('engineer_id', $row->id)
+                    ->where('status_id', 2)
+                    ->count();
+            })
+            ->addColumn('closedComplaintsCount', function ($row) use ($todayDate) {
+                return DB::table('complaints')
+                    ->where('engineer_id', $row->id)
+                    ->where('status_id', 3)
+                    ->where('engineer_out_date', $todayDate)
+                    ->count();
+            })
+            ->rawColumns(['action'])
+            ->make(true);
     }
+
+    return view('complaint.pending-approval', $data);
+}
     
+public function approveAttendance(Request $request)
+{
+    try {
+        $request->validate([
+            'ids'   => 'required|array|min:1',
+            'ids.*' => 'integer|exists:attendtl,id',
+        ]);
+
+        $updated = Attendtl::whereIn('id', $request->ids)
+            ->where('is_approved', 0)
+            ->update(['is_approved' => 1]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $updated . ' record(s) approved successfully.',
+            'updated' => $updated,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage(), // ← shows real error in browser
+        ], 500);
+    }
+}
 
     public function userMonthlyAttendenceList($id, Request $request)
     {

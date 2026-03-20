@@ -10,6 +10,7 @@
                     <nav>
                         <ol class="breadcrumb mb-1 mb-md-0">
                             <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ route('attendap-today-report') }}">Attendence</a></li>
                             <li class="breadcrumb-item active" aria-current="page">{{ $title }}</li>
                         </ol>
                     </nav>
@@ -19,10 +20,16 @@
         <div class="row">
             <div class="col-xl-12">
                 <div class="card custom-card">
+                     
                     <div class="card-header justify-content-between">
                         <div class="card-title">{{ $title }}</div>
-                        <div class="justify-content-end">
-                            <button class="btn btn-primary" id="toggleFormBtn"><i class="fa fa-filter" aria-hidden="true"></i></button>
+                        <div class="justify-content-end d-flex gap-2">
+                            <button class="btn btn-success" id="approveBtn">
+                                <i class="fa fa-check" aria-hidden="true"></i> Approve
+                            </button>
+                            <button class="btn btn-primary" id="toggleFormBtn">
+                                <i class="fa fa-filter" aria-hidden="true"></i>
+                            </button>
                         </div>
                     </div>
                     <div class="header-element px-4">
@@ -33,16 +40,7 @@
                                     <label for="date_from">Date</label>
                                     <input type="text" class="form-control" placeholder="yyyy-mm-dd" name="date_from" id="date_from">
                                 </div>
-                                <div class="col col-md-2">
-                                    <label for="attn">Attendance</label>
-                                    <select name="attn" class="form-control" id="attn">
-                                        <option value="" selected>All</option>
-                                        <option value="P">P</option>
-                                        <option value="A">A</option>
-                                        <option value="L">L</option>
-                                        <option value="H">H</option>
-                                    </select>
-                                </div>
+                                
                                 <div class="col">
                                     <label for="role_id">Roles</label>
                                     <select class="form-control" id="role_id" name="role_id">
@@ -60,7 +58,8 @@
                                             <option value="{{ $item->id }}">{{ $item->name }}</option>
                                         @endforeach
                                     </select>
-                                </div>    
+                                </div>  
+                                  
                                 <div class="col">
                                     <button type="button" id="search-button" class="btn btn-primary mt-3">Filter</button>
                                 </div>
@@ -120,7 +119,7 @@
                 searching: true,
                 pageLength: 100,
                 ajax: {
-                    url: "{{ route('attendap-today-report') }}",
+                    url: "{{ route('pending-approval') }}",
                     type: 'GET',
                     data: function(d) {
                         d.date_from = $('#date_from').val();
@@ -134,7 +133,7 @@
                         orderable: false,
                         searchable: false,
                         render: function(data, type, row) {
-                            return '<input type="checkbox" class="form-check-input row-checkbox" value="' + row.id + '">';
+                            return '<input type="checkbox" class="form-check-input row-checkbox" value="' + row.attendance_id + '">';
                         }
                     },
                     {
@@ -234,6 +233,93 @@
                         $('#selectAll').prop('checked', true);
                     }
                 }
+            });
+
+            // Approve selected attendance records
+            $('#approveBtn').on('click', function() {
+                var selectedIds = [];
+                $('.row-checkbox:checked').each(function() {
+                    selectedIds.push($(this).val());
+                });
+
+                if (selectedIds.length === 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'No Selection',
+                        text: 'Please select at least one record to approve.',
+                        confirmButtonColor: '#3085d6',
+                    });
+                    return;
+                }
+
+                Swal.fire({
+                    title: 'Approve Attendance?',
+                    text: "Are you sure you want to approve " + selectedIds.length + " record(s)?",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#dc3545',
+                    confirmButtonText: 'Yes, Approve!',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Show loading
+                        Swal.fire({
+                            title: 'Processing...',
+                            text: 'Please wait while we approve the records.',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false,
+                            showConfirmButton: false,
+                            willOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+
+                        $.ajax({
+                            url: "{{ route('approve-attendance') }}",
+                            type: 'POST',
+                            data: {
+                                ids: selectedIds,
+                                _token: '{{ csrf_token() }}'
+                            },
+                            success: function(response) {
+                                if (response.success) {
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Success!',
+                                        text: response.message || 'Attendance records approved successfully.',
+                                        confirmButtonColor: '#28a745',
+                                    }).then(() => {
+                                        $('#selectAll').prop('checked', false);
+                                        table.draw(); // Refresh table
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Error!',
+                                        text: 'Something went wrong. Please try again.',
+                                        confirmButtonColor: '#dc3545',
+                                    });
+                                }
+                            },
+                            error: function(xhr) {
+                                var errorMessage = 'An error occurred. Please try again.';
+                                if (xhr.responseJSON && xhr.responseJSON.errors) {
+                                    errorMessage = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                                } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                    errorMessage = xhr.responseJSON.message;
+                                }
+                                
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error!',
+                                    text: errorMessage,
+                                    confirmButtonColor: '#dc3545',
+                                });
+                            }
+                        });
+                    }
+                });
             });
         });
     </script>
