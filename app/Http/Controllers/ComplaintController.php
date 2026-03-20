@@ -1,5 +1,5 @@
 <?php
-
+//New controller
 namespace App\Http\Controllers;
 
 use App\DataTables\ComplaintDataTable;
